@@ -6,22 +6,59 @@
 //
 
 import SwiftUI
+import Combine
 
 public struct SVGParser {
 
     static public func parse(contentsOf url: URL, settings: SVGSettings = .default) -> SVGNode? {
+        // 先检查缓存
+        if let cachedNode = SVGCache.shared.getSVGNode(for: url, settings: settings) {
+            return cachedNode
+        }
+        
         let xml = DOMParser.parse(contentsOf: url, logger: settings.logger)
-        return parse(xml: xml, settings: settings.linkIfNeeded(to: url))
+        let result = parse(xml: xml, settings: settings.linkIfNeeded(to: url))
+        
+        // 缓存解析结果
+        if let result = result {
+            SVGCache.shared.cacheSVGNode(result, for: url, settings: settings)
+        }
+        
+        return result
     }
 
     static public func parse(data: Data, settings: SVGSettings = .default) -> SVGNode? {
+        // 先检查缓存
+        if let cachedNode = SVGCache.shared.getSVGNode(for: data, settings: settings) {
+            return cachedNode
+        }
+        
         let xml = DOMParser.parse(data: data, logger: settings.logger)
-        return parse(xml: xml, settings: settings)
+        let result = parse(xml: xml, settings: settings)
+        
+        // 缓存解析结果
+        if let result = result {
+            SVGCache.shared.cacheSVGNode(result, for: data, settings: settings)
+        }
+        
+        return result
     }
 
     static public func parse(string: String, settings: SVGSettings = .default) -> SVGNode? {
+        // 先检查缓存
+        if let cachedNode = SVGCache.shared.getSVGNode(for: string, settings: settings) {
+            return cachedNode
+        }
+        
         let xml = DOMParser.parse(string: string, logger: settings.logger)
-        return parse(xml: xml, settings: settings)
+        let result = parse(xml: xml, settings: settings)
+        
+        // 缓存解析结果
+        if let result = result {
+            SVGCache.shared.cacheSVGNode(result, for: string, settings: settings)
+        }
+        
+        return result
     }
 
     static public func parse(stream: InputStream, settings: SVGSettings = .default) -> SVGNode? {
@@ -43,6 +80,40 @@ public struct SVGParser {
     @available(*, deprecated, message: "Use parse(contentsOf:) function instead")
     static public func parse(fileURL: URL) -> SVGNode? {
         return parse(contentsOf: fileURL)
+    }
+    
+    // MARK: - Async Methods
+    
+    /// 异步解析URL中的SVG文件
+    static public func parseAsync(contentsOf url: URL, settings: SVGSettings = .default) async throws -> SVGNode? {
+        return try await AsyncSVGParser.parseAsync(contentsOf: url, settings: settings)
+    }
+    
+    /// 异步解析Data中的SVG内容
+    static public func parseAsync(data: Data, settings: SVGSettings = .default) async throws -> SVGNode? {
+        return try await AsyncSVGParser.parseAsync(data: data, settings: settings)
+    }
+    
+    /// 异步解析字符串中的SVG内容
+    static public func parseAsync(string: String, settings: SVGSettings = .default) async throws -> SVGNode? {
+        return try await AsyncSVGParser.parseAsync(string: string, settings: settings)
+    }
+    
+    /// 异步解析InputStream中的SVG内容
+    static public func parseAsync(stream: InputStream, settings: SVGSettings = .default) async throws -> SVGNode? {
+        return try await AsyncSVGParser.parseAsync(stream: stream, settings: settings)
+    }
+    
+    // MARK: - Combine Publishers
+    
+    /// 使用Combine发布者进行异步解析
+    static public func parsePublisher(contentsOf url: URL, settings: SVGSettings = .default) -> AnyPublisher<SVGNode?, Error> {
+        return AsyncSVGParser.parsePublisher(contentsOf: url, settings: settings)
+    }
+    
+    /// 使用Combine发布者进行异步解析Data
+    static public func parsePublisher(data: Data, settings: SVGSettings = .default) -> AnyPublisher<SVGNode?, Error> {
+        return AsyncSVGParser.parsePublisher(data: data, settings: settings)
     }
 
     private static func parse(element: XMLElement, parentContext: SVGContext) -> SVGNode? {

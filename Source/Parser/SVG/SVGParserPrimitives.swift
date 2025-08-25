@@ -78,19 +78,25 @@ public class SVGHelper: NSObject {
     }
 
     static func parseTransform(_ attributes: String, transform: CGAffineTransform = CGAffineTransform.identity) -> CGAffineTransform {
-        guard let matcher = SVGParserRegexHelper.getTransformAttributeMatcher() else {
-            return transform
-        }
-
-        let attributes = attributes.replacingOccurrences(of: "\n", with: "")
-        var finalTransform = transform
-        let fullRange = NSRange(location: 0, length: attributes.count)
-
-        guard let matchedAttribute = matcher.firstMatch(in: attributes, options: .reportCompletion, range: fullRange) else {
-            return finalTransform
-        }
-        let attributeName = (attributes as NSString).substring(with: matchedAttribute.range(at: 1))
-        let values = parseTransformValues((attributes as NSString).substring(with: matchedAttribute.range(at: 2)))
+        // 添加空字符串检查
+            guard !attributes.isEmpty,
+                  let matcher = SVGParserRegexHelper.getTransformAttributeMatcher() else {
+                return transform
+            }
+            
+            let attributes = attributes.replacingOccurrences(of: "\n", with: "")
+            var finalTransform = transform
+            let nsAttributes = attributes as NSString
+            let fullRange = NSRange(location: 0, length: nsAttributes.length)
+            
+            // 使用 firstMatch 的安全版本
+            guard let matchedAttribute = try? matcher.firstMatch(in: attributes, options: [], range: fullRange),
+                  matchedAttribute.numberOfRanges > 2 else {
+                return finalTransform
+            }
+        
+        let attributeName = nsAttributes.substring(with: matchedAttribute.range(at: 1))
+        let values = parseTransformValues(nsAttributes.substring(with: matchedAttribute.range(at: 2)))
         if values.isEmpty {
             return finalTransform
         }
@@ -156,16 +162,21 @@ public class SVGHelper: NSObject {
             return collectedValues
         }
         var updatedValues: [String] = collectedValues
-        let fullRange = NSRange(location: 0, length: values.count)
+        
+        // 修复: 使用正确的 NSRange
+        let nsValues = values as NSString
+        let fullRange = NSRange(location: 0, length: nsValues.length)
+        
         if let matchedValue = matcher.firstMatch(in: values, options: .reportCompletion, range: fullRange) {
-            let value = (values as NSString).substring(with: matchedValue.range)
+            let value = nsValues.substring(with: matchedValue.range)
             updatedValues.append(value)
             let rangeToRemove = NSRange(location: 0, length: matchedValue.range.location + matchedValue.range.length)
-            let newValues = (values as NSString).replacingCharacters(in: rangeToRemove, with: "")
+            let newValues = nsValues.replacingCharacters(in: rangeToRemove, with: "")
             return parseTransformValues(newValues, collectedValues: updatedValues)
         }
         return updatedValues
     }
+
 
     static func transformForNodeInRespectiveCoords(respective: SVGNode, absolute: SVGNode) -> CGAffineTransform {
         let absoluteBounds = absolute.bounds()

@@ -16,17 +16,19 @@ public struct SVGSettings {
     public let logger: SVGLogger
     public let fontSize: CGFloat
     public let ppi: Double
+    public let cacheConfig: SVGCacheConfig
 
-    public init(linker: SVGLinker = .none, logger: SVGLogger = .console, fontSize: CGFloat = 16, ppi: CGFloat = 96) {
+    public init(linker: SVGLinker = .none, logger: SVGLogger = .console, fontSize: CGFloat = 16, ppi: CGFloat = 96, cacheConfig: SVGCacheConfig = .default) {
         self.linker = linker
         self.logger = logger
         self.fontSize = fontSize
         self.ppi = ppi
+        self.cacheConfig = cacheConfig
     }
 
     func linkIfNeeded(to svgURL: URL) -> SVGSettings {
         if linker === SVGLinker.none {
-            return SVGSettings(linker: .relative(to: svgURL), logger: logger, fontSize: fontSize, ppi: ppi)
+            return SVGSettings(linker: .relative(to: svgURL), logger: logger, fontSize: fontSize, ppi: ppi, cacheConfig: cacheConfig)
         }
         return self
     }
